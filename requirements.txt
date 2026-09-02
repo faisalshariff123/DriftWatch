@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-psycopg
+psycopg[binary]
 psycopg-pool
 python-dotenv
 sentence-transformers
