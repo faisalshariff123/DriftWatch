@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Driftwatch Dashboard</title>
+</head>
+<body>
+  <h1>Driftwatch — Tesla FSD Drift</h1>
+  <canvas id="driftChart"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    async function loadChart() {
+      const res = await fetch('http://localhost:8000/drift/1');
+      const json = await res.json();
+
+      const labels = json.timeline.map(row => row.published_at);
+      const scores = json.timeline.map(row => row.drift_score);
+
+      new Chart(document.getElementById('driftChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Tesla FSD drift score',
+            data: scores,
+            borderColor: 'blue',
+            tension: 0.2
+          }]
+        }
+      });
+    }
+    loadChart();
+  </script>
+</body>
+</html>
