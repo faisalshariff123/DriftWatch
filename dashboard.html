@@ -6,8 +6,18 @@
 </head>
 <body>
   <h1>Driftwatch — Tesla FSD Drift</h1>
+
+  <div style="margin: 12px 0; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; max-width: 600px;">
+    <p style="margin: 4px 0;"><span style="display:inline-block; width:12px; height:12px; background:rgba(28,175,122,0.3); margin-right:6px;"></span>Green band = normal range of drift scores</p>
+    <p style="margin: 4px 0;"><span style="display:inline-block; width:12px; height:12px; background:#eb6834; border-radius:50%; margin-right:6px;"></span>Orange dots = most recent 8 articles</p>
+    <p style="margin: 4px 0;">→ Orange dots inside the green band = Tesla's latest statements sound normal</p>
+    <p style="margin: 4px 0;">→ Orange dots above the green band = Tesla's latest coverage sounds different than usual</p>
+    <p style="margin: 4px 0;">Click any point to open the source article</p>
+  </div>
+
   <p id="baseline"><em>Loading baseline...</em></p>
   <canvas id="driftChart"></canvas>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     function movingAverage(data, windowSize) {
@@ -18,64 +28,65 @@
       });
     }
 
+    function mean(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
+    function stdDev(arr, avg) {
+      const variance = arr.reduce((sum, x) => sum + (x - avg) ** 2, 0) / arr.length;
+      return Math.sqrt(variance);
+    }
+
     async function loadBaseline() {
       const res = await fetch('http://localhost:8000/baseline/1');
       const json = await res.json();
       document.getElementById('baseline').innerText =
-        json.baseline_text
-          ? `Typical Tesla FSD statement: "${json.baseline_text}"`
-          : 'No baseline available yet.';
+        json.baseline_text ? `Typical Tesla FSD statement: "${json.baseline_text}"` : 'No baseline yet.';
     }
 
     async function loadChart() {
       const res = await fetch('http://localhost:8000/drift/1');
       const json = await res.json();
-
-      // filter out entries with no date, sort chronologically
-      const timeline = json.timeline
-        .filter(row => row.published_at)
+      const timeline = json.timeline.filter(r => r.published_at)
         .sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
 
-      const labels = timeline.map(row => row.published_at.slice(0, 10)); // just the date
-      const scores = timeline.map(row => row.drift_score);
+      const labels = timeline.map(r => r.published_at.slice(0, 10));
+      const scores = timeline.map(r => r.drift_score);
       const smoothed = movingAverage(scores, 7);
-      const texts = timeline.map(row => row.text);
+      const texts = timeline.map(r => r.text);
+      const urls = timeline.map(r => r.url);
 
-      new Chart(document.getElementById('driftChart'), {
+      const avg = mean(scores);
+      const sd = stdDev(scores, avg);
+      const RECENT = 8;
+      const pointColors = scores.map((_, i) => i >= scores.length - RECENT ? '#eb6834' : 'rgba(42,120,214,0.25)');
+      const pointRadii = scores.map((_, i) => i >= scores.length - RECENT ? 5 : 2);
+
+      const chart = new Chart(document.getElementById('driftChart'), {
         type: 'line',
         data: {
           labels: labels,
           datasets: [
-            {
-              label: 'Raw drift score',
-              data: scores,
-              borderColor: 'rgba(0,0,255,0.2)',
-              pointRadius: 2,
-              tension: 0.1
-            },
-            {
-              label: '7-article moving average',
-              data: smoothed,
-              borderColor: 'red',
-              borderWidth: 3,
-              pointRadius: 0,
-              tension: 0.3
-            }
+            { label: 'Normal range', data: scores.map(() => avg + sd), borderColor: 'transparent', backgroundColor: 'rgba(28,175,122,0.12)', pointRadius: 0, fill: '+1' },
+            { label: '_lower', data: scores.map(() => avg - sd), borderColor: 'transparent', pointRadius: 0, fill: false },
+            { label: 'Typical level', data: scores.map(() => avg), borderColor: '#1baf7a', borderDash: [6, 6], pointRadius: 0, borderWidth: 2 },
+            { label: 'Raw drift score', data: scores, borderColor: 'rgba(42,120,214,0.25)', pointBackgroundColor: pointColors, pointRadius: pointRadii, tension: 0.1 },
+            { label: 'Moving average', data: smoothed, borderColor: '#2a78d6', borderWidth: 3, pointRadius: 0, tension: 0.3 }
           ]
         },
         options: {
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: (ctx) => texts[ctx.dataIndex]
-                  ? texts[ctx.dataIndex].slice(0, 80)
-                  : `Drift: ${ctx.formattedValue}`
-              }
+          onHover: (event, elements) => {
+            event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+          },
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const url = urls[index];
+              if (url) window.open(url, '_blank');
             }
           },
-          scales: {
-            x: { ticks: { maxTicksLimit: 15 } }
-          }
+          plugins: {
+            legend: { labels: { filter: item => item.text !== '_lower' } },
+            tooltip: { callbacks: { label: ctx => texts[ctx.dataIndex] ? texts[ctx.dataIndex].slice(0, 80) : `Drift: ${ctx.formattedValue}` } }
+          },
+          scales: { x: { ticks: { maxTicksLimit: 15 } } }
         }
       });
     }

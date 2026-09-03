@@ -38,7 +38,7 @@ def score_all_statements(entity_id: int):
     with get_conn() as conn:
         cur = conn.execute(
             """
-            SELECT id, raw_text, published_at, embedding <=> %s::vector AS drift_score
+            SELECT id, raw_text, published_at, source_url, embedding <=> %s::vector AS drift_score
             FROM statements
             WHERE entity_id = %s
             ORDER BY published_at

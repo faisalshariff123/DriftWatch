@@ -40,7 +40,7 @@ def get_drift(entity_id: int):
     return {
         "entity_id": entity_id,
         "timeline": [
-            {"id": r[0], "text": r[1], "published_at": r[2], "drift_score": r[3]}
+            {"id": r[0], "text": r[1], "published_at": r[2], "url": r[3], "drift_score": r[4]}
             for r in results
         ],
     }
