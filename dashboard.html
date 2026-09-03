@@ -348,7 +348,7 @@
         <label>Track someone new:</label>
         <input id="newEntityName" type="text" placeholder="e.g. Nvidia, Elon Musk">
         <input id="newEntityTerms" type="text" placeholder="Search terms, comma separated e.g. Nvidia AI chips, Nvidia earnings">
-        <button class="claim-button" style="max-width: 220px;" onclick="addNewEntity()">Add &amp; fetch articles</button>
+        <button class="claim-button" id="addEntityBtn" style="max-width: 220px;" onclick="addNewEntity()">Add &amp; fetch articles</button>
         <p id="addStatus"></p>
       </div>
 
@@ -446,6 +446,7 @@
     let newestArticle = null;
     let chartInstance = null;
     let currentEntityName = '';
+    let activeEntityId = null;
 
     function movingAverage(data, windowSize) {
       return data.map((_, i) => {
@@ -539,7 +540,7 @@
         select.appendChild(opt);
       });
 
-      select.addEventListener('change', () => loadDashboard(select.value));
+      select.onchange = () => loadDashboard(select.value); // onchange REPLACES, never stacks duplicate handlers
 
       if (json.entities.length > 0) {
         loadDashboard(select.value);
@@ -550,9 +551,12 @@
       try {
         const res = await fetch(`${API_BASE}/baseline/${entityId}`);
         const json = await res.json();
+        if (String(entityId) !== activeEntityId) return; // a newer selection already took over, discard this stale response
         document.getElementById('baseline').textContent = json.baseline_text || 'No baseline computed yet.';
       } catch (e) {
-        document.getElementById('baseline').textContent = 'Could not load baseline.';
+        if (String(entityId) === activeEntityId) {
+          document.getElementById('baseline').textContent = 'Could not load baseline.';
+        }
       }
     }
 
@@ -560,6 +564,8 @@
       try {
         const res = await fetch(`${API_BASE}/drift/${entityId}`);
         const json = await res.json();
+
+        if (String(entityId) !== activeEntityId) return; // a newer selection already took over, discard this stale response
 
         timelineData = json.timeline
           .filter(r => r.published_at)
@@ -635,12 +641,34 @@
     function loadDashboard(entityId) {
       const select = document.getElementById('entitySelect');
       currentEntityName = select.options[select.selectedIndex]?.textContent || '';
+      activeEntityId = String(entityId); // this is the only entity allowed to render from now on
+
+      // reset immediately so stale content from the previous entity never lingers on screen mid-fetch
       document.getElementById('subtitle').textContent = `Track semantic drift in ${currentEntityName}'s messaging`;
+      document.getElementById('baseline').textContent = 'Loading baseline...';
+      document.getElementById('key-finding-text').textContent = 'Loading...';
+
       loadBaseline(entityId);
       loadChart(entityId);
     }
 
+    let isAdding = false;
+
+    async function waitForData(entityId, maxAttempts = 15, intervalMs = 2000) {
+      for (let i = 0; i < maxAttempts; i++) {
+        const res = await fetch(`${API_BASE}/drift/${entityId}`);
+        const json = await res.json();
+        if (json.timeline && json.timeline.length > 0) {
+          return true;
+        }
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
+      return false;
+    }
+
     async function addNewEntity() {
+      if (isAdding) return; // guard against double-click firing this twice
+
       const name = document.getElementById('newEntityName').value.trim();
       const termsRaw = document.getElementById('newEntityTerms').value.trim();
       if (!name || !termsRaw) {
@@ -649,27 +677,50 @@
       }
       const search_terms = termsRaw.split(',').map(t => t.trim()).filter(Boolean);
       const status = document.getElementById('addStatus');
+      const btn = document.getElementById('addEntityBtn');
 
-      status.textContent = 'Adding entity...';
-      const createRes = await fetch(`${API_BASE}/entities`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, search_terms })
-      });
-      const created = await createRes.json();
+      isAdding = true;
+      btn.disabled = true;
+      btn.textContent = 'Working...';
 
-      status.textContent = `Fetching articles for "${name}"... this calls SerpApi, please wait.`;
-      await fetch(`${API_BASE}/trigger-ingest/${created.id}`, { method: 'POST' });
+      try {
+        status.textContent = 'Adding entity...';
+        const createRes = await fetch(`${API_BASE}/entities`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, search_terms })
+        });
+        const created = await createRes.json();
 
-      status.textContent = 'Queued. Give the worker a few seconds to store them, then check the dropdown.';
-      await loadEntities();
+        status.textContent = `Fetching articles for "${name}"... this calls SerpApi, please wait.`;
+        await fetch(`${API_BASE}/trigger-ingest/${created.id}`, { method: 'POST' });
 
-      const select = document.getElementById('entitySelect');
-      select.value = created.id;
-      loadDashboard(created.id);
+        status.textContent = 'Articles queued — waiting for the worker to store them, this can take 10-30 seconds...';
+        const gotData = await waitForData(created.id);
+
+        status.textContent = gotData
+          ? 'Done! Showing results below.'
+          : 'Still processing — check your worker terminal is running, then re-select this entity in the dropdown.';
+
+        await loadEntities();
+        const select = document.getElementById('entitySelect');
+        select.value = created.id;
+        loadDashboard(created.id);
+      } finally {
+        isAdding = false;
+        btn.disabled = false;
+        btn.textContent = 'Add & fetch articles';
+      }
     }
 
-    loadEntities();
+    async function resetAndLoad() {
+      // Wipe everything on every page load/refresh, so data only ever
+      // exists for whatever was most recently searched.
+      await fetch(`${API_BASE}/reset`, { method: 'POST' });
+      await loadEntities();
+    }
+
+    resetAndLoad();
   </script>
 </body>
 </html>

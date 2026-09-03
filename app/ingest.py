@@ -84,7 +84,7 @@ def extract_and_embed_articles(articles):
     return valid_articles, embeddings
 
 
-def queue_ingestion_job(articles, embeddings, entity_id=1):
+def queue_ingestion_job(articles, embeddings, entity_id):
     """
     Step 4: Queue the job in Redis.
     Instead of immediately inserting to Supabase (slow, blocks the API),
@@ -101,12 +101,18 @@ def queue_ingestion_job(articles, embeddings, entity_id=1):
     return job
 
 
-def run_ingestion(search_query="Tesla full self-driving", entity_id=1, num_articles=10):
+def run_ingestion(search_query, entity_id, num_articles=10):
     """
     Main function: fetch -> embed -> queue for one search query.
+
+    search_query and entity_id are REQUIRED, no defaults. This is
+    intentional: if any caller forgets to pass one, this now throws a
+    loud TypeError immediately instead of silently falling back to a
+    stale hardcoded value and mis-attributing articles to the wrong
+    entity.
     """
     print("\n" + "="*60)
-    print(f"DRIFTWATCH INGESTION PIPELINE — query: {search_query}")
+    print(f"DRIFTWATCH INGESTION PIPELINE — entity {entity_id} — query: {search_query}")
     print("="*60 + "\n")
 
     articles = fetch_articles_from_serpapi(search_query, num_articles=num_articles)
@@ -130,19 +136,24 @@ def run_ingestion(search_query="Tesla full self-driving", entity_id=1, num_artic
     return True
 
 
-def run_backfill(entity_id=1):
+def run_backfill(entity_id, queries=None):
     """
     Runs several searches spanning different time periods/framings of a
     topic, so a fresh entity gets real spread instead of everything
-    clustered on today's date. Adjust the queries list per entity.
+    clustered on today's date.
+
+    entity_id is required. queries defaults to the original Tesla FSD
+    set only if you don't pass your own — pass your own list for any
+    other entity.
     """
-    queries = [
-        "Tesla full self-driving 2023",
-        "Tesla FSD delay",
-        "Tesla full self-driving 2024",
-        "Tesla FSD robotaxi 2025",
-        "Tesla full self-driving next year",
-    ]
+    if queries is None:
+        queries = [
+            "Tesla full self-driving 2023",
+            "Tesla FSD delay",
+            "Tesla full self-driving 2024",
+            "Tesla FSD robotaxi 2025",
+            "Tesla full self-driving next year",
+        ]
 
     for q in queries:
         run_ingestion(search_query=q, entity_id=entity_id, num_articles=6)
@@ -153,4 +164,6 @@ def run_backfill(entity_id=1):
 
 
 if __name__ == "__main__":
-    run_backfill()
+    # Explicit entity_id required now — 1 was Tesla in this project's
+    # seeded data, adjust if you're backfilling a different entity.
+    run_backfill(entity_id=1)

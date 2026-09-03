@@ -28,6 +28,22 @@ def health():
     return {"status": "ok"}
 
 
+@app.post("/reset")
+def reset_all():
+    """
+    Wipes every statement and entity. Called on dashboard page load so
+    the app always starts from a clean slate — combined with the wipe
+    inside create_entity, this means data only ever exists for
+    whatever was most recently searched, and never persists across a
+    refresh.
+    """
+    with get_conn() as conn:
+        conn.execute("DELETE FROM statements")
+        conn.execute("DELETE FROM entities")
+        conn.commit()
+    return {"status": "cleared"}
+
+
 @app.get("/entities")
 def get_entities():
     with get_conn() as conn:
@@ -43,7 +59,15 @@ class NewEntity(BaseModel):
 
 @app.post("/entities")
 def create_entity(payload: NewEntity):
+    """
+    True wipe-and-replace: only ONE entity ever exists, period. No
+    protected/permanent entity, no entity_type distinction. Adding a
+    new one deletes EVERYTHING that existed before it.
+    """
     with get_conn() as conn:
+        conn.execute("DELETE FROM statements")
+        conn.execute("DELETE FROM entities")
+
         cur = conn.execute(
             "INSERT INTO entities (name, entity_type, search_terms) VALUES (%s, %s, %s) RETURNING id",
             (payload.name, "custom", payload.search_terms),
