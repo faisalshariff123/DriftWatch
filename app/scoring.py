@@ -1,6 +1,25 @@
 from app.db import get_conn
 
+def get_representative_statement(entity_id: int):
+    """Returns the single stored statement closest to the centroid —
+    i.e. the most 'typical' example of what this entity usually says."""
+    centroid = compute_centroid(entity_id)
+    if centroid is None:
+        return None
 
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            SELECT raw_text, published_at, embedding <=> %s::vector AS distance
+            FROM statements
+            WHERE entity_id = %s
+            ORDER BY distance ASC
+            LIMIT 1
+            """,
+            (centroid, entity_id),
+        )
+        return cur.fetchone()
+    
 def compute_centroid(entity_id: int):
     with get_conn() as conn:
         cur = conn.execute(
