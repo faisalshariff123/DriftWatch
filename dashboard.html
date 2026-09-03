@@ -1,33 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Driftwatch Dashboard</title>
 </head>
 <body>
   <h1>Driftwatch — Tesla FSD Drift</h1>
+  <p id="baseline"><em>Loading baseline...</em></p>
   <canvas id="driftChart"></canvas>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    function movingAverage(data, windowSize) {
+      return data.map((_, i) => {
+        const start = Math.max(0, i - windowSize + 1);
+        const window = data.slice(start, i + 1);
+        return window.reduce((a, b) => a + b, 0) / window.length;
+      });
+    }
+
+    async function loadBaseline() {
+      const res = await fetch('http://localhost:8000/baseline/1');
+      const json = await res.json();
+      document.getElementById('baseline').innerText =
+        json.baseline_text
+          ? `Typical Tesla FSD statement: "${json.baseline_text}"`
+          : 'No baseline available yet.';
+    }
+
     async function loadChart() {
       const res = await fetch('http://localhost:8000/drift/1');
       const json = await res.json();
 
-      const labels = json.timeline.map(row => row.published_at);
-      const scores = json.timeline.map(row => row.drift_score);
+      // filter out entries with no date, sort chronologically
+      const timeline = json.timeline
+        .filter(row => row.published_at)
+        .sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
+
+      const labels = timeline.map(row => row.published_at.slice(0, 10)); // just the date
+      const scores = timeline.map(row => row.drift_score);
+      const smoothed = movingAverage(scores, 7);
+      const texts = timeline.map(row => row.text);
 
       new Chart(document.getElementById('driftChart'), {
         type: 'line',
         data: {
           labels: labels,
-          datasets: [{
-            label: 'Tesla FSD drift score',
-            data: scores,
-            borderColor: 'blue',
-            tension: 0.2
-          }]
+          datasets: [
+            {
+              label: 'Raw drift score',
+              data: scores,
+              borderColor: 'rgba(0,0,255,0.2)',
+              pointRadius: 2,
+              tension: 0.1
+            },
+            {
+              label: '7-article moving average',
+              data: smoothed,
+              borderColor: 'red',
+              borderWidth: 3,
+              pointRadius: 0,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => texts[ctx.dataIndex]
+                  ? texts[ctx.dataIndex].slice(0, 80)
+                  : `Drift: ${ctx.formattedValue}`
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { maxTicksLimit: 15 } }
+          }
         }
       });
     }
+
+    loadBaseline();
     loadChart();
   </script>
 </body>
