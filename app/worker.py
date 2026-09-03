@@ -3,9 +3,23 @@ import psycopg
 from dotenv import load_dotenv
 from rq import SimpleWorker
 from pgvector.psycopg import register_vector
+from datetime import datetime
 import redis
 
 load_dotenv()
+
+
+def parse_serpapi_date(date_str):
+    """SerpApi google_news dates look like: '07/22/2026, 07:00 AM, +0000 UTC'
+    Strip the trailing timezone name and parse the rest."""
+    if not date_str:
+        return None
+    try:
+        cleaned = date_str.replace(" UTC", "").strip()
+        return datetime.strptime(cleaned, "%m/%d/%Y, %I:%M %p, %z")
+    except (ValueError, TypeError):
+        print(f"  [Warning] Could not parse date: {date_str}")
+        return None
 
 
 def store_embeddings(articles, embeddings, entity_id=1):
@@ -22,7 +36,7 @@ def store_embeddings(articles, embeddings, entity_id=1):
         for i, article in enumerate(articles):
             raw_text = f"{article.get('title', '')} {article.get('snippet', '')}"
             source_url = article.get('link', '')
-            published_at = article.get('date', None)
+            published_at = parse_serpapi_date(article.get('date'))
             embedding = embeddings[i].tolist()
 
             cur.execute(
