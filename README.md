@@ -1,10 +1,8 @@
 # DriftWatch
 
-Tracks how a company or public figure's public messaging drifts over time. Pulls real news coverage, embeds each statement, and scores every article by how far it's strayed from that subject's own baseline — so "Tesla FSD is basically here" (2023) and "FSD is still a couple years out" (2025) show up as a measurable break in the line, not just a vibe.
+Tracks how a company or public figure's public messaging drifts over time. Pulls real news coverage, embeds each statement, and scores every article by how far it's strayed from that subject's own baseline. So stuff like "Tesla FSD is basically here" (2023) and "FSD is still a couple years out" (2025) show up as a measurable break in the line, not just a vibe.
 
 ## Demo
-
-https://youtu.be/Y7KwKLq7iX8
 <img width="1906" height="893" alt="Screenshot 2026-09-03 at 2 17 52 AM" src="https://github.com/user-attachments/assets/afe4d275-c94f-4628-9255-7dd24d962b11" />
 <img width="1912" height="897" alt="Screenshot 2026-09-03 at 2 18 02 AM" src="https://github.com/user-attachments/assets/cbfd6976-a83c-4ea7-9c1c-0f9724889279" />
 
@@ -51,7 +49,7 @@ python3 -m venv .venv
 
 **5. Open** `http://127.0.0.1:8000` and log a subject.
 
-Note: the dashboard wipes its data on every page load (`/reset`) by design — it's meant to show one subject's drift at a time, not accumulate a database of tracked entities.
+Note: the dashboard wipes its data on every page load (`/reset`) by design — it's meant to show one subject's drift at a time and not accumulate a database of tracked entities.
 
 ## Project structure
 
