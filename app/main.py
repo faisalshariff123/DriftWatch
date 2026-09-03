@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db import get_conn
-from app.scoring import score_all_statements
+from app.scoring import score_all_statements, get_representative_statement
 
 app = FastAPI()
 
@@ -11,7 +11,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+@app.get("/baseline/{entity_id}")
+def get_baseline(entity_id: int):
+    row = get_representative_statement(entity_id)
+    if row is None:
+        return {"entity_id": entity_id, "baseline": None}
+    return {
+        "entity_id": entity_id,
+        "baseline_text": row[0],
+        "published_at": row[1],
+    }
 @app.get("/health")
 def health():
     with get_conn() as conn:
