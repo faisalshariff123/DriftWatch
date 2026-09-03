@@ -1,7 +1,7 @@
 import os
 import psycopg
 from dotenv import load_dotenv
-from rq import Worker
+from rq import SimpleWorker
 from pgvector.psycopg import register_vector
 import redis
 
@@ -9,29 +9,21 @@ load_dotenv()
 
 
 def store_embeddings(articles, embeddings, entity_id=1):
-    """
-    This function runs in the background worker.
-
-    Takes articles + embeddings and stores them in Supabase.
-    """
     db_url = os.getenv('DATABASE_URL')
-
     if not db_url:
         raise ValueError("DATABASE_URL not in .env file")
 
-    # Connect to Supabase
     print(f"[Connecting] Connecting to Supabase...")
     conn = psycopg.connect(db_url)
-    register_vector(conn)  # required so psycopg knows how to send the VECTOR type
+    register_vector(conn)
     cur = conn.cursor()
 
     try:
-        # Insert each article + embedding into Supabase
         for i, article in enumerate(articles):
             raw_text = f"{article.get('title', '')} {article.get('snippet', '')}"
             source_url = article.get('link', '')
             published_at = article.get('date', None)
-            embedding = embeddings[i].tolist()  # Convert numpy array to list
+            embedding = embeddings[i].tolist()
 
             cur.execute(
                 """INSERT INTO statements (entity_id, source_url, raw_text, embedding, published_at)
@@ -53,14 +45,8 @@ def store_embeddings(articles, embeddings, entity_id=1):
 
 
 def start_worker():
-    """
-    Start the background worker process.
-
-    This runs forever, listening to the Redis queue.
-    When a job arrives, it runs the function.
-    """
     redis_conn = redis.Redis.from_url(os.getenv('REDIS_URL'))
-    worker = Worker(['default'], connection=redis_conn)
+    worker = SimpleWorker(['default'], connection=redis_conn)
 
     print("\n" + "="*60)
     print("DRIFTWATCH BACKGROUND WORKER")
