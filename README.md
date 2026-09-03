@@ -4,9 +4,11 @@ Tracks how a company or public figure's public messaging drifts over time. Pulls
 
 ## Demo
 
-![DriftWatch demo](docs/demo.gif)
+![DriftWatch demo](https://youtu.be/Y7KwKLq7iX8)
+<img width="1906" height="893" alt="Screenshot 2026-09-03 at 2 17 52 AM" src="https://github.com/user-attachments/assets/afe4d275-c94f-4628-9255-7dd24d962b11" />
+<img width="1912" height="897" alt="Screenshot 2026-09-03 at 2 18 02 AM" src="https://github.com/user-attachments/assets/cbfd6976-a83c-4ea7-9c1c-0f9724889279" />
 
-*(Recording: search a subject, watch articles get pulled, embedded, and scored live on the chart.)*
+
 
 ## How it works
 
