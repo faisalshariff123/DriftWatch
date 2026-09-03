@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE entities (
+CREATE TABLE IF NOT EXISTS entities (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     entity_type TEXT NOT NULL,
@@ -8,7 +8,7 @@ CREATE TABLE entities (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE statements (
+CREATE TABLE IF NOT EXISTS statements (
     id SERIAL PRIMARY KEY,
     entity_id INT REFERENCES entities(id),
     source_url TEXT,
@@ -18,7 +18,7 @@ CREATE TABLE statements (
     ingested_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE drift_scores (
+CREATE TABLE IF NOT EXISTS drift_scores (
     id SERIAL PRIMARY KEY,
     entity_id INT REFERENCES entities(id),
     window_start TIMESTAMPTZ,

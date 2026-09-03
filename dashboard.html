@@ -18,7 +18,8 @@
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1600px;
+      width: 95%;
       margin: 0 auto;
       background: white;
       border-radius: 12px;
@@ -45,6 +46,55 @@
 
     .content {
       padding: 30px;
+    }
+
+    /* ENTITY SELECTOR */
+    .entity-selector {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 15px;
+      padding: 16px;
+      background: #f0f4ff;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .entity-selector label {
+      font-weight: 600;
+      color: #2d3436;
+      font-size: 14px;
+    }
+
+    .entity-selector select {
+      flex: 1;
+      max-width: 400px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .add-entity {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 30px;
+    }
+
+    .add-entity input {
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    #addStatus {
+      font-size: 13px;
+      color: #666;
     }
 
     /* STATS SECTION */
@@ -233,7 +283,7 @@
     /* CHART */
     .chart-container {
       position: relative;
-      height: 400px;
+      height: 620px;
       margin: 30px 0;
     }
 
@@ -271,6 +321,10 @@
       .header h1 {
         font-size: 24px;
       }
+
+      .chart-container {
+        height: 400px;
+      }
     }
   </style>
 </head>
@@ -278,11 +332,26 @@
   <div class="container">
     <!-- HEADER -->
     <div class="header">
-      <h1>🎯 Driftwatch</h1>
-      <p>Track semantic drift in Tesla's Full Self-Driving messaging</p>
+      <h1>Driftwatch</h1>
+      <p id="subtitle">Track semantic drift in messaging over time</p>
     </div>
 
     <div class="content">
+      <!-- ENTITY SELECTOR -->
+      <div class="entity-selector">
+        <label for="entitySelect">Tracking:</label>
+        <select id="entitySelect"></select>
+      </div>
+
+      <!-- ADD NEW ENTITY -->
+      <div class="entity-selector add-entity">
+        <label>Track someone new:</label>
+        <input id="newEntityName" type="text" placeholder="e.g. Nvidia, Elon Musk">
+        <input id="newEntityTerms" type="text" placeholder="Search terms, comma separated e.g. Nvidia AI chips, Nvidia earnings">
+        <button class="claim-button" style="max-width: 220px;" onclick="addNewEntity()">Add &amp; fetch articles</button>
+        <p id="addStatus"></p>
+      </div>
+
       <!-- STATS CARDS -->
       <div class="stats-grid">
         <div class="stat-card high-drift" id="drift-card">
@@ -306,13 +375,13 @@
 
       <!-- KEY FINDING -->
       <div class="key-finding">
-        <h3>🔍 What Changed?</h3>
-        <p id="key-finding-text">Analyzing Tesla's messaging patterns...</p>
+        <h3>What Changed?</h3>
+        <p id="key-finding-text">Analyzing messaging patterns...</p>
       </div>
 
       <!-- CLAIM COMPARISON -->
       <div class="claims-section">
-        <h3>📝 Oldest vs Most Recent Claims</h3>
+        <h3>Oldest vs Most Recent Claims</h3>
         <div class="claims-container">
           <div class="claim-box old">
             <div class="claim-date" id="old-date">Loading...</div>
@@ -341,7 +410,7 @@
 
       <!-- LEGEND -->
       <div class="legend">
-        <p style="font-weight: bold; margin-bottom: 10px;">📈 How to Read This Chart:</p>
+        <p style="font-weight: bold; margin-bottom: 10px;">How to Read This Chart:</p>
         <div class="legend-item">
           <div class="legend-color" style="background: rgba(28,175,122,0.3);"></div>
           <span><strong>Green band</strong> = normal range of drift scores</span>
@@ -351,10 +420,13 @@
           <span><strong>Orange dots</strong> = most recent 8 articles</span>
         </div>
         <div class="legend-item">
-          <span>→ Orange dots <strong>inside</strong> green = Tesla's latest sounds normal</span>
+          <span>&rarr; Orange dots <strong>inside</strong> green = latest sounds normal</span>
         </div>
         <div class="legend-item">
-          <span>→ Orange dots <strong>above</strong> green = Tesla's latest sounds different</span>
+          <span>&rarr; Orange dots <strong>above</strong> green = latest sounds different</span>
+        </div>
+        <div class="legend-item">
+          <span>Click any point on the chart to open the source article</span>
         </div>
       </div>
 
@@ -367,9 +439,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    const API_BASE = 'http://localhost:8000';
+
     let timelineData = [];
     let oldestArticle = null;
     let newestArticle = null;
+    let chartInstance = null;
+    let currentEntityName = '';
 
     function movingAverage(data, windowSize) {
       return data.map((_, i) => {
@@ -395,23 +471,19 @@
 
     function generateKeyFinding() {
       if (!oldestArticle || !newestArticle) return;
-
       const oldDate = formatDate(oldestArticle.published_at);
       const newDate = formatDate(newestArticle.published_at);
-
       const findingText = `
-        Tesla's messaging shifted significantly between ${oldDate} and ${newDate}.
-        The older statement focused on "ready soon" while recent coverage emphasizes
-        "rethinking the approach." This represents a fundamental change in strategy communication.
+        ${currentEntityName}'s messaging shifted between ${oldDate} and ${newDate}.
+        Compare the oldest and newest statements below to see how the framing changed.
       `;
-
       document.getElementById('key-finding-text').textContent = findingText.trim();
     }
 
     function updateStatCards() {
       const scores = timelineData.map(r => r.drift_score);
       const currentScore = scores[scores.length - 1] || 0;
-      
+
       let statusEmoji = '🟢';
       let statusText = 'Stable';
 
@@ -430,7 +502,7 @@
       document.getElementById('drift-card').innerHTML = `
         <div class="stat-label">Current Drift Score</div>
         <div class="stat-value">${currentScore.toFixed(2)}</div>
-        <div class="stat-subtext" id="drift-status">${currentScore > avg ? '↗️ Above normal' : '✓ Within normal'}</div>
+        <div class="stat-subtext" id="drift-status">${currentScore > avg ? 'Above normal' : 'Within normal'}</div>
       `;
 
       document.getElementById('article-count').textContent = timelineData.length;
@@ -440,10 +512,8 @@
 
     function updateClaimComparison() {
       if (!oldestArticle || !newestArticle) return;
-
       document.getElementById('old-date').textContent = formatDate(oldestArticle.published_at);
       document.getElementById('old-quote').textContent = oldestArticle.text.slice(0, 150) + '...';
-
       document.getElementById('new-date').textContent = formatDate(newestArticle.published_at);
       document.getElementById('new-quote').textContent = newestArticle.text.slice(0, 150) + '...';
     }
@@ -457,28 +527,47 @@
       }
     }
 
-    async function loadBaseline() {
+    async function loadEntities() {
+      const res = await fetch(`${API_BASE}/entities`);
+      const json = await res.json();
+      const select = document.getElementById('entitySelect');
+      select.innerHTML = '';
+      json.entities.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = e.name;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', () => loadDashboard(select.value));
+
+      if (json.entities.length > 0) {
+        loadDashboard(select.value);
+      }
+    }
+
+    async function loadBaseline(entityId) {
       try {
-        const res = await fetch('http://localhost:8000/baseline/1');
+        const res = await fetch(`${API_BASE}/baseline/${entityId}`);
         const json = await res.json();
-        const text = json.baseline_text || 'No baseline computed yet.';
-        document.getElementById('baseline').textContent = text;
+        document.getElementById('baseline').textContent = json.baseline_text || 'No baseline computed yet.';
       } catch (e) {
         document.getElementById('baseline').textContent = 'Could not load baseline.';
       }
     }
 
-    async function loadChart() {
+    async function loadChart(entityId) {
       try {
-        const res = await fetch('http://localhost:8000/drift/1');
+        const res = await fetch(`${API_BASE}/drift/${entityId}`);
         const json = await res.json();
-        
+
         timelineData = json.timeline
           .filter(r => r.published_at)
           .sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
 
         if (timelineData.length === 0) {
-          document.querySelector('.content').innerHTML += '<p style="text-align:center; color:#999;">No data yet. Run ingestion first!</p>';
+          document.getElementById('key-finding-text').textContent = 'No data yet for this entity. Click "Add & fetch articles" or run ingestion first.';
+          if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
           return;
         }
 
@@ -501,50 +590,18 @@
         const pointColors = scores.map((_, i) => i >= scores.length - RECENT ? '#eb6834' : 'rgba(42,120,214,0.25)');
         const pointRadii = scores.map((_, i) => i >= scores.length - RECENT ? 5 : 2);
 
-        const chart = new Chart(document.getElementById('driftChart'), {
+        if (chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(document.getElementById('driftChart'), {
           type: 'line',
           data: {
             labels: labels,
             datasets: [
-              {
-                label: 'Normal range',
-                data: scores.map(() => avg + sd),
-                borderColor: 'transparent',
-                backgroundColor: 'rgba(28,175,122,0.12)',
-                pointRadius: 0,
-                fill: '+1'
-              },
-              {
-                label: '_lower',
-                data: scores.map(() => avg - sd),
-                borderColor: 'transparent',
-                pointRadius: 0,
-                fill: false
-              },
-              {
-                label: 'Typical level',
-                data: scores.map(() => avg),
-                borderColor: '#1baf7a',
-                borderDash: [6, 6],
-                pointRadius: 0,
-                borderWidth: 2
-              },
-              {
-                label: 'Raw drift score',
-                data: scores,
-                borderColor: 'rgba(42,120,214,0.25)',
-                pointBackgroundColor: pointColors,
-                pointRadius: pointRadii,
-                tension: 0.1
-              },
-              {
-                label: 'Moving average',
-                data: smoothed,
-                borderColor: '#2a78d6',
-                borderWidth: 3,
-                pointRadius: 0,
-                tension: 0.3
-              }
+              { label: 'Normal range', data: scores.map(() => avg + sd), borderColor: 'transparent', backgroundColor: 'rgba(28,175,122,0.12)', pointRadius: 0, fill: '+1' },
+              { label: '_lower', data: scores.map(() => avg - sd), borderColor: 'transparent', pointRadius: 0, fill: false },
+              { label: 'Typical level', data: scores.map(() => avg), borderColor: '#1baf7a', borderDash: [6, 6], pointRadius: 0, borderWidth: 2 },
+              { label: 'Raw drift score', data: scores, borderColor: 'rgba(42,120,214,0.25)', pointBackgroundColor: pointColors, pointRadius: pointRadii, tension: 0.1 },
+              { label: 'Moving average', data: smoothed, borderColor: '#2a78d6', borderWidth: 3, pointRadius: 0, tension: 0.3 }
             ]
           },
           options: {
@@ -555,45 +612,64 @@
             },
             onClick: (event, elements) => {
               if (elements.length > 0) {
-                const index = elements[0].index;
-                const url = urls[index];
+                const url = urls[elements[0].index];
                 if (url) window.open(url, '_blank');
               }
             },
             plugins: {
-              legend: {
-                labels: {
-                  filter: item => item.text !== '_lower',
-                  padding: 15,
-                  usePointStyle: true
-                }
-              },
-              tooltip: {
-                callbacks: {
-                  label: ctx => texts[ctx.dataIndex] ? texts[ctx.dataIndex].slice(0, 80) + '...' : `Drift: ${ctx.formattedValue}`
-                }
-              }
+              legend: { labels: { filter: item => item.text !== '_lower', padding: 15, usePointStyle: true } },
+              tooltip: { callbacks: { label: ctx => texts[ctx.dataIndex] ? texts[ctx.dataIndex].slice(0, 80) + '...' : `Drift: ${ctx.formattedValue}` } }
             },
             scales: {
-              y: {
-                beginAtZero: true,
-                max: 1,
-                title: { display: true, text: 'Drift Score' }
-              },
-              x: {
-                ticks: { maxTicksLimit: 15 }
-              }
+              y: { beginAtZero: true, max: 1, title: { display: true, text: 'Drift Score' } },
+              x: { ticks: { maxTicksLimit: 15 } }
             }
           }
         });
       } catch (e) {
         console.error('Failed to load drift data:', e);
-        document.querySelector('.content').innerHTML += '<p style="text-align:center; color:#e74c3c;">Error loading data. Make sure the API is running!</p>';
+        document.getElementById('key-finding-text').textContent = 'Error loading data. Make sure the API is running!';
       }
     }
 
-    loadBaseline();
-    loadChart();
+    function loadDashboard(entityId) {
+      const select = document.getElementById('entitySelect');
+      currentEntityName = select.options[select.selectedIndex]?.textContent || '';
+      document.getElementById('subtitle').textContent = `Track semantic drift in ${currentEntityName}'s messaging`;
+      loadBaseline(entityId);
+      loadChart(entityId);
+    }
+
+    async function addNewEntity() {
+      const name = document.getElementById('newEntityName').value.trim();
+      const termsRaw = document.getElementById('newEntityTerms').value.trim();
+      if (!name || !termsRaw) {
+        alert('Enter both a name and at least one search term');
+        return;
+      }
+      const search_terms = termsRaw.split(',').map(t => t.trim()).filter(Boolean);
+      const status = document.getElementById('addStatus');
+
+      status.textContent = 'Adding entity...';
+      const createRes = await fetch(`${API_BASE}/entities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, search_terms })
+      });
+      const created = await createRes.json();
+
+      status.textContent = `Fetching articles for "${name}"... this calls SerpApi, please wait.`;
+      await fetch(`${API_BASE}/trigger-ingest/${created.id}`, { method: 'POST' });
+
+      status.textContent = 'Queued. Give the worker a few seconds to store them, then check the dropdown.';
+      await loadEntities();
+
+      const select = document.getElementById('entitySelect');
+      select.value = created.id;
+      loadDashboard(created.id);
+    }
+
+    loadEntities();
   </script>
 </body>
 </html>

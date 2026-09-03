@@ -1,10 +1,11 @@
 fastapi
-uvicorn
+uvicorn[standard]
 psycopg[binary]
 psycopg-pool
 python-dotenv
 sentence-transformers
+pgvector
 rq
 redis
-google-search-results
+requests
 numpy

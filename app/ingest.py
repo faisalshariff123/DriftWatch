@@ -14,7 +14,13 @@ model = SentenceTransformer('all-MiniLM-L6-v2')
 redis_conn = redis.Redis.from_url(os.getenv('REDIS_URL'))
 queue = Queue(connection=redis_conn)
 
+
 def fetch_articles_from_serpapi(search_query, num_articles=10):
+    """
+    Step 1: Call SerpApi to get real articles.
+    Uses google_news engine specifically because it returns real publish
+    dates, unlike the default organic search results.
+    """
     api_key = os.getenv('SERPAPI_KEY')
     if not api_key:
         raise ValueError("SERPAPI_KEY not in .env file")
@@ -46,8 +52,12 @@ def fetch_articles_from_serpapi(search_query, num_articles=10):
 
 def extract_and_embed_articles(articles):
     """
-    FIXED: builds valid_articles and texts together so they never drift
-    out of sync when an article gets skipped for having no title/snippet.
+    Step 2: Extract text from articles
+    Step 3: Convert text to embeddings (384 numbers)
+
+    valid_articles and texts are built together in lockstep so that an
+    article with an empty title/snippet never causes the embedding array
+    to drift out of alignment with the article list.
     """
     if not articles:
         print("[Warning] No articles to embed")
@@ -75,6 +85,12 @@ def extract_and_embed_articles(articles):
 
 
 def queue_ingestion_job(articles, embeddings, entity_id=1):
+    """
+    Step 4: Queue the job in Redis.
+    Instead of immediately inserting to Supabase (slow, blocks the API),
+    a job is placed in Redis. A background worker (worker.py) picks it
+    up and does the actual insert.
+    """
     if not articles or len(embeddings) == 0:
         print("[Warning] No data to queue")
         return None
@@ -86,6 +102,9 @@ def queue_ingestion_job(articles, embeddings, entity_id=1):
 
 
 def run_ingestion(search_query="Tesla full self-driving", entity_id=1, num_articles=10):
+    """
+    Main function: fetch -> embed -> queue for one search query.
+    """
     print("\n" + "="*60)
     print(f"DRIFTWATCH INGESTION PIPELINE — query: {search_query}")
     print("="*60 + "\n")
@@ -113,10 +132,9 @@ def run_ingestion(search_query="Tesla full self-driving", entity_id=1, num_artic
 
 def run_backfill(entity_id=1):
     """
-    NEW: runs multiple searches spanning different time periods/framings
-    of Tesla FSD news, so the demo has real spread instead of everything
-    clustered on today's date. Run this once, then let worker.py process
-    the queued jobs.
+    Runs several searches spanning different time periods/framings of a
+    topic, so a fresh entity gets real spread instead of everything
+    clustered on today's date. Adjust the queries list per entity.
     """
     queries = [
         "Tesla full self-driving 2023",
@@ -128,10 +146,10 @@ def run_backfill(entity_id=1):
 
     for q in queries:
         run_ingestion(search_query=q, entity_id=entity_id, num_articles=6)
-        time.sleep(2)  # small pause between SerpApi calls, be polite to rate limits
+        time.sleep(2)  # be polite to SerpApi rate limits
 
     print("\n[Backfill complete] Now start the worker to process all queued jobs:")
-    print("python app/worker.py")
+    print("python3 -m app.worker")
 
 
 if __name__ == "__main__":
