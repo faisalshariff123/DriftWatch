@@ -35,7 +35,12 @@ def compute_centroid(entity_id: int):
 
 def score_all_statements(entity_id: int):
     """Score every stored statement for this entity against its own centroid.
-    Returns id, text, published_at, source_url, and drift_score per row."""
+    Returns id, text, published_at, source_url, drift_score, ingested_at per row.
+
+    ingested_at is returned so the frontend has a fallback timestamp: SerpApi
+    hands back plenty of dates the worker can't parse, and rows with a NULL
+    published_at used to be discarded client-side, making a populated database
+    render as "no data"."""
     centroid = compute_centroid(entity_id)
     if centroid is None:
         return []
@@ -44,10 +49,11 @@ def score_all_statements(entity_id: int):
         cur = conn.execute(
             """
             SELECT id, raw_text, published_at, source_url,
-                   embedding <=> %s::vector AS drift_score
+                   embedding <=> %s::vector AS drift_score,
+                   ingested_at
             FROM statements
             WHERE entity_id = %s
-            ORDER BY published_at
+            ORDER BY COALESCE(published_at, ingested_at)
             """,
             (centroid, entity_id),
         )

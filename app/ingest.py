@@ -33,21 +33,57 @@ def fetch_articles_from_serpapi(search_query, num_articles=10):
         'num': num_articles
     }
 
-    print(f"[Fetching] Calling SerpApi with query: {search_query}")
+    print(f"Searching: {search_query}")
     response = requests.get(url, params=params, timeout=10)
 
     if response.status_code != 200:
-        print(f"[Error] SerpApi returned status {response.status_code}")
+        print(f"Search failed (HTTP {response.status_code})")
         return []
 
     try:
         data = response.json()
-        articles = data.get('news_results', [])
-        print(f"[Success] Got {len(articles)} articles from SerpApi")
+        if data.get('error'):
+            print(f"Search failed: {data['error']}")
+            return []
+        raw = data.get('news_results', [])
+        articles = flatten_news_results(raw)
+        print(f"Found {len(articles)} articles.")
         return articles
     except Exception as e:
-        print(f"[Error] Failed to parse response: {e}")
+        print(f"Could not read search results: {e}")
         return []
+
+
+def flatten_news_results(raw_results):
+    """google_news does not always return flat articles.
+
+    Many queries come back as story CLUSTERS: an item with no title of its
+    own, just a `highlight` object and a `stories` list. The old code read
+    item['title'] directly, got '', and dropped the entire cluster - so a
+    query whose results were mostly clusters ingested ZERO articles while
+    still reporting success. Flatten clusters out, then dedupe by link.
+    """
+    flattened = []
+    for item in raw_results or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get('title'):
+            flattened.append(item)
+        highlight = item.get('highlight')
+        if isinstance(highlight, dict) and highlight.get('title'):
+            flattened.append(highlight)
+        for story in item.get('stories') or []:
+            if isinstance(story, dict) and story.get('title'):
+                flattened.append(story)
+
+    seen = set()
+    deduped = []
+    for article in flattened:
+        key = article.get('link') or article.get('title')
+        if key and key not in seen:
+            seen.add(key)
+            deduped.append(article)
+    return deduped
 
 
 def extract_and_embed_articles(articles):
@@ -60,26 +96,25 @@ def extract_and_embed_articles(articles):
     to drift out of alignment with the article list.
     """
     if not articles:
-        print("[Warning] No articles to embed")
         return [], []
 
     valid_articles = []
     texts = []
     for article in articles:
-        title = article.get('title', '').strip()
-        snippet = article.get('snippet', '').strip()
-        text = f"{title} {snippet}".strip()
+        title = (article.get('title') or '').strip()
+        snippet = (article.get('snippet') or '').strip()
+        source = article.get('source') or {}
+        source_name = (source.get('name') if isinstance(source, dict) else str(source)) or ''
+        text = ' '.join(p for p in (title, snippet, source_name.strip()) if p).strip()
         if text:
             valid_articles.append(article)
             texts.append(text)
 
     if not texts:
-        print("[Warning] No valid text extracted from articles")
         return [], []
 
-    print(f"[Embedding] Converting {len(texts)} texts to vectors...")
+    print(f"Analyzing {len(texts)} articles...")
     embeddings = model.encode(texts, show_progress_bar=False)
-    print(f"[Success] Created {len(embeddings)} embeddings of dimension {embeddings[0].shape}")
 
     return valid_articles, embeddings
 
@@ -92,13 +127,9 @@ def queue_ingestion_job(articles, embeddings, entity_id):
     up and does the actual insert.
     """
     if not articles or len(embeddings) == 0:
-        print("[Warning] No data to queue")
         return None
 
-    print(f"[Queueing] Queuing job to store {len(articles)} articles in Supabase...")
-    job = queue.enqueue(store_embeddings, articles, embeddings, entity_id)
-    print(f"[Queued] Job ID: {job.id} - Status: {job.get_status()}")
-    return job
+    return queue.enqueue(store_embeddings, articles, embeddings, entity_id)
 
 
 def run_ingestion(search_query, entity_id, num_articles=10):
@@ -111,28 +142,20 @@ def run_ingestion(search_query, entity_id, num_articles=10):
     stale hardcoded value and mis-attributing articles to the wrong
     entity.
     """
-    print("\n" + "="*60)
-    print(f"DRIFTWATCH INGESTION PIPELINE — entity {entity_id} — query: {search_query}")
-    print("="*60 + "\n")
-
     articles = fetch_articles_from_serpapi(search_query, num_articles=num_articles)
     if not articles:
-        print("[Error] No articles fetched. Aborting.")
+        print("No articles found.")
         return False
 
     articles, embeddings = extract_and_embed_articles(articles)
     if len(embeddings) == 0:
-        print("[Error] Failed to embed articles. Aborting.")
+        print("Nothing usable in those articles.")
         return False
 
     job = queue_ingestion_job(articles, embeddings, entity_id)
     if not job:
-        print("[Error] Failed to queue job. Aborting.")
         return False
 
-    print("\n" + "="*60)
-    print("INGESTION QUEUED SUCCESSFULLY")
-    print("="*60 + "\n")
     return True
 
 
@@ -159,8 +182,7 @@ def run_backfill(entity_id, queries=None):
         run_ingestion(search_query=q, entity_id=entity_id, num_articles=6)
         time.sleep(2)  # be polite to SerpApi rate limits
 
-    print("\n[Backfill complete] Now start the worker to process all queued jobs:")
-    print("python3 -m app.worker")
+    print("Backfill done.")
 
 
 if __name__ == "__main__":

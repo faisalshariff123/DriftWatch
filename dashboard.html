@@ -2,8 +2,23 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Driftwatch Dashboard</title>
+  <title>Driftwatch — Log (Night)</title>
   <style>
+    :root {
+      --paper: #171c17;
+      --paper-raised: #1f251f;
+      --rule: #4a5a4a;
+      --rule-light: #333d33;
+      --ink: #e7ece3;
+      --ink-muted: #a3b59e;
+      --ink-faint: #798c76;
+      --navy: #8b9bdb;
+      --brick: #e08468;
+      --moss: #93b57c;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -11,435 +26,420 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: var(--sans);
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(rgba(231,236,227,0.045) 1.5px, transparent 1.5px),
+        linear-gradient(90deg, rgba(231,236,227,0.045) 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
       min-height: 100vh;
-      padding: 20px;
     }
 
-    .container {
-      max-width: 1600px;
-      width: 95%;
+    .sheet {
+      max-width: 1200px;
       margin: 0 auto;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-      overflow: hidden;
+      padding: 40px 28px 60px;
     }
 
-    .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px;
-      text-align: center;
+    /* MASTHEAD */
+    .masthead {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 14px;
+      border-bottom: 4px solid var(--ink);
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      gap: 14px;
     }
 
-    .header h1 {
-      font-size: 32px;
-      margin-bottom: 8px;
+    .masthead h1 {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
     }
 
-    .header p {
-      font-size: 14px;
-      opacity: 0.9;
+    .masthead .meta {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-faint);
+      text-align: right;
+      line-height: 1.5;
     }
 
-    .content {
-      padding: 30px;
+    .rule-thin {
+      border-bottom: 2px solid var(--rule);
+      margin-bottom: 22px;
     }
 
-    /* ENTITY SELECTOR */
-    .entity-selector {
+    /* TRACKING ROW */
+    .tracking-row {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 15px;
-      padding: 16px;
-      background: #f0f4ff;
-      border-radius: 8px;
-      border-left: 4px solid #667eea;
+      gap: 14px;
+      padding: 16px 0;
+      flex-wrap: wrap;
     }
 
-    .entity-selector label {
-      font-weight: 600;
-      color: #2d3436;
-      font-size: 14px;
+    .field-label {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-faint);
     }
 
-    .entity-selector select {
-      flex: 1;
-      max-width: 400px;
-      padding: 10px 14px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-      background: white;
+    select, input {
+      font-family: var(--sans);
+      background: var(--paper-raised);
+      border: 2px solid var(--rule);
+      color: var(--ink);
+      border-radius: 3px;
+      padding: 7px 11px;
+      font-size: 13.5px;
+    }
+
+    select { min-width: 210px; cursor: pointer; }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: var(--navy);
+    }
+
+    .toggle-link {
+      background: none;
+      border: none;
+      font-family: var(--mono);
+      color: var(--ink-muted);
+      font-size: 12px;
       cursor: pointer;
+      text-decoration: underline;
+      text-decoration-color: var(--rule);
+      text-underline-offset: 3px;
+      padding: 4px 0;
     }
 
-    .add-entity {
-      flex-direction: column;
-      align-items: stretch;
+    .toggle-link:hover { color: var(--navy); }
+
+    #addEntityPanel {
+      display: none;
       gap: 10px;
-      margin-top: 10px;
-      margin-bottom: 30px;
+      padding: 4px 0 20px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 2px solid var(--rule);
+      margin-bottom: 20px;
     }
 
-    .add-entity input {
-      padding: 10px 14px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 14px;
+    #addEntityPanel input { flex: 1; min-width: 170px; }
+
+    .btn-log {
+      font-family: var(--mono);
+      background: var(--navy);
+      color: var(--paper);
+      border: none;
+      border-radius: 3px;
+      padding: 8px 16px;
+      font-size: 12.5px;
+      cursor: pointer;
+      white-space: nowrap;
     }
+
+    .btn-log:hover { background: #223058; }
+    .btn-log:disabled { background: var(--rule); color: var(--ink-faint); cursor: not-allowed; }
 
     #addStatus {
-      font-size: 13px;
-      color: #666;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      width: 100%;
     }
 
-    /* STATS SECTION */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
+    /* LOG ENTRY FIELDS (dotted-leader stat list) */
+    .log-fields {
+      margin: 22px 0 6px;
     }
 
-    .stat-card {
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      padding: 20px;
-      border-radius: 8px;
-      text-align: center;
-      border-left: 4px solid #667eea;
+    .log-field {
+      display: flex;
+      align-items: baseline;
+      padding: 7px 0;
+      font-size: 14px;
     }
 
-    .stat-card.high-drift {
-      background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
-      border-left-color: #e17055;
+    .log-field .k {
+      color: var(--ink-muted);
+      white-space: nowrap;
     }
 
-    .stat-label {
-      font-size: 12px;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
+    .log-field .leader {
+      flex: 1;
+      border-bottom: 2px dotted var(--ink-faint);
+      margin: 0 8px;
+      transform: translateY(-4px);
     }
 
-    .stat-value {
-      font-size: 36px;
-      font-weight: bold;
-      color: #2d3436;
+    .log-field .v {
+      font-family: var(--mono);
+      font-weight: 600;
+      white-space: nowrap;
     }
 
-    .stat-subtext {
-      font-size: 12px;
-      color: #666;
-      margin-top: 8px;
+    .log-field .v.attention { color: var(--brick); }
+
+    .log-field .sub {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-faint);
+      margin-left: 8px;
     }
 
     /* KEY FINDING */
-    .key-finding {
-      background: linear-gradient(135deg, #fff5e1 0%, #ffe8cc 100%);
-      border-left: 4px solid #f39c12;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 30px;
+    .finding {
+      margin: 20px 0 8px;
+      padding: 14px 0;
+      border-top: 2px dashed var(--rule);
+      border-bottom: 2px dashed var(--rule);
     }
 
-    .key-finding h3 {
-      color: #d68910;
-      font-size: 14px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .finding .tag {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--ink-faint);
+      display: block;
+      margin-bottom: 6px;
     }
 
-    .key-finding p {
-      color: #333;
-      font-size: 16px;
-      line-height: 1.5;
-      margin-bottom: 12px;
+    .finding p {
+      font-size: 14.5px;
+      line-height: 1.65;
     }
 
-    /* CLAIM COMPARISON */
-    .claims-section {
-      margin-bottom: 30px;
+    /* EXCERPTS (claims) */
+    .excerpts-heading {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-faint);
+      margin: 26px 0 12px;
     }
 
-    .claims-section h3 {
-      font-size: 14px;
-      color: #2d3436;
-      text-transform: uppercase;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .claims-container {
+    .excerpts {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       gap: 20px;
-      align-items: stretch;
     }
 
-    .claim-box {
-      background: #f8f9fa;
-      padding: 20px;
-      border-radius: 8px;
-      border-left: 4px solid #667eea;
-    }
-
-    .claim-box.old {
-      border-left-color: #3498db;
-      background: linear-gradient(135deg, #e3f2fd 0%, #f0f4ff 100%);
-    }
-
-    .claim-box.new {
-      border-left-color: #e74c3c;
-      background: linear-gradient(135deg, #ffe8e8 0%, #fff0f0 100%);
-    }
-
-    .claim-date {
-      font-size: 12px;
-      color: #7f8c8d;
-      text-transform: uppercase;
+    .excerpt-date {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-faint);
       margin-bottom: 8px;
-      letter-spacing: 0.5px;
     }
 
-    .claim-quote {
-      font-size: 15px;
-      font-style: italic;
-      color: #2d3436;
-      line-height: 1.6;
-      margin: 12px 0;
+    .excerpt-date.attention { color: var(--brick); }
+
+    .excerpt-text {
+      font-size: 14.5px;
+      line-height: 1.65;
+      margin-bottom: 12px;
     }
 
-    .claim-buttons {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .claim-button {
-      flex: 1;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 4px;
-      font-size: 12px;
+    .excerpt-link {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      background: none;
+      border: 2px solid var(--rule);
+      color: var(--ink-muted);
+      border-radius: 3px;
+      padding: 6px 10px;
       cursor: pointer;
-      background: #667eea;
-      color: white;
-      transition: all 0.2s;
     }
 
-    .claim-button:hover {
-      background: #5568d3;
-      transform: translateY(-2px);
-    }
+    .excerpt-link:hover { border-color: var(--navy); color: var(--navy); }
 
-    .vs-divider {
+    .excerpts-divider {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-      color: #bdc3c7;
-      font-weight: bold;
-    }
-
-    /* LEGEND */
-    .legend {
-      margin: 20px 0;
-      padding: 12px;
-      background: #f0f4ff;
-      border-radius: 6px;
-      font-size: 13px;
-      border-left: 4px solid #667eea;
-    }
-
-    .legend p {
-      margin: 6px 0;
-      color: #555;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 6px 0;
-    }
-
-    .legend-color {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 2px;
-    }
-
-    /* CHART */
-    .chart-container {
-      position: relative;
-      height: 620px;
-      margin: 30px 0;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-faint);
+      writing-mode: vertical-rl;
     }
 
     /* BASELINE */
-    .baseline {
-      background: #ecf0f1;
-      padding: 15px;
-      border-radius: 6px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      color: #555;
+    .baseline-line {
+      margin-top: 22px;
+      font-size: 13.5px;
+      color: var(--ink-muted);
     }
 
-    .baseline em {
-      color: #667eea;
-      font-style: normal;
-      font-weight: 500;
+    .baseline-line .k { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+    .baseline-line em { color: var(--navy); font-style: normal; }
+
+    /* CHART */
+    .chart-block {
+      margin-top: 30px;
     }
 
-    /* RESPONSIVE */
-    @media (max-width: 768px) {
-      .claims-container {
-        grid-template-columns: 1fr;
-      }
+    .chart-container {
+      position: relative;
+      height: 520px;
+      background: var(--paper-raised);
+      border: 2px solid var(--rule);
+      padding: 16px;
+    }
 
-      .vs-divider {
-        transform: rotate(90deg);
-        margin: -10px 0;
-      }
+    .chart-footnote {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-faint);
+      margin-top: 10px;
+      line-height: 1.9;
+    }
 
-      .stat-card {
-        min-width: 150px;
-      }
+    .chart-footnote .swatch {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
 
-      .header h1 {
-        font-size: 24px;
-      }
 
-      .chart-container {
-        height: 400px;
-      }
+    /* STATUS BANNER */
+    #banner {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 10px 12px;
+      margin: 0 0 18px;
+      border-radius: 3px;
+      border-left: 4px solid var(--brick);
+      background: var(--paper-raised);
+      color: var(--ink-muted);
+    }
+
+    #banner.warn { border-left-color: #c9a227; }
+    #banner[hidden] { display: none !important; }
+
+    @media (max-width: 760px) {
+      .excerpts { grid-template-columns: 1fr; }
+      .excerpts-divider { writing-mode: horizontal-tb; margin: -4px 0; }
+      .chart-container { height: 360px; }
+      .masthead { flex-direction: column; align-items: flex-start; }
+      .masthead .meta { text-align: left; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- HEADER -->
-    <div class="header">
-      <h1>Driftwatch</h1>
-      <p id="subtitle">Track semantic drift in messaging over time</p>
+  <div class="sheet">
+
+    <div class="masthead">
+      <h1>Driftwatch — field log</h1>
+      <div class="meta" id="logMeta">entry · semantic drift record</div>
+    </div>
+    <div class="rule-thin"></div>
+
+    <div id="banner" hidden></div>
+
+    <div class="tracking-row">
+      <span class="field-label">subject</span>
+      <select id="entitySelect"></select>
+      <button class="toggle-link" onclick="toggleAddPanel()">log a new subject</button>
     </div>
 
-    <div class="content">
-      <!-- ENTITY SELECTOR -->
-      <div class="entity-selector">
-        <label for="entitySelect">Tracking:</label>
-        <select id="entitySelect"></select>
+    <div id="addEntityPanel">
+      <input id="newEntityName" type="text" placeholder="name, e.g. Nvidia">
+      <input id="newEntityTerms" type="text" placeholder="search terms, comma separated">
+      <button class="btn-log" id="addEntityBtn" onclick="addNewEntity()">add &amp; fetch</button>
+      <p id="addStatus"></p>
+    </div>
+
+    <p id="subtitle" style="font-size: 13px; color: var(--ink-faint); font-family: var(--mono);">tracking semantic drift over time</p>
+
+    <div class="log-fields">
+      <div class="log-field" id="drift-card">
+        <span class="k">current reading</span>
+        <span class="leader"></span>
+        <span class="v">--</span>
+        <span class="sub" id="drift-status">loading…</span>
+      </div>
+      <div class="log-field">
+        <span class="k">articles logged</span>
+        <span class="leader"></span>
+        <span class="v" id="article-count">--</span>
+      </div>
+      <div class="log-field">
+        <span class="k">status</span>
+        <span class="leader"></span>
+        <span class="v" id="status-text">loading…</span>
+        <span class="sub" id="status-emoji"></span>
+      </div>
+    </div>
+
+    <div class="finding">
+      <span class="tag">observation</span>
+      <p id="key-finding-text">Analyzing messaging patterns…</p>
+    </div>
+
+    <p class="excerpts-heading">oldest vs. most recent entry</p>
+    <div class="excerpts">
+      <div class="excerpt old">
+        <div class="excerpt-date" id="old-date">loading…</div>
+        <div class="excerpt-text" id="old-quote">Fetching oldest statement…</div>
+        <button class="excerpt-link" onclick="openArticle('old')">view source</button>
       </div>
 
-      <!-- ADD NEW ENTITY -->
-      <div class="entity-selector add-entity">
-        <label>Track someone new:</label>
-        <input id="newEntityName" type="text" placeholder="e.g. Nvidia, Elon Musk">
-        <input id="newEntityTerms" type="text" placeholder="Search terms, comma separated e.g. Nvidia AI chips, Nvidia earnings">
-        <button class="claim-button" id="addEntityBtn" style="max-width: 220px;" onclick="addNewEntity()">Add &amp; fetch articles</button>
-        <p id="addStatus"></p>
+      <div class="excerpts-divider">vs</div>
+
+      <div class="excerpt new">
+        <div class="excerpt-date attention" id="new-date">loading…</div>
+        <div class="excerpt-text" id="new-quote">Fetching newest statement…</div>
+        <button class="excerpt-link" onclick="openArticle('new')">view source</button>
       </div>
+    </div>
 
-      <!-- STATS CARDS -->
-      <div class="stats-grid">
-        <div class="stat-card high-drift" id="drift-card">
-          <div class="stat-label">Current Drift Score</div>
-          <div class="stat-value">--</div>
-          <div class="stat-subtext" id="drift-status">Loading...</div>
-        </div>
+    <p class="baseline-line"><span class="k">baseline —</span> <em id="baseline">Loading baseline…</em></p>
 
-        <div class="stat-card">
-          <div class="stat-label">Articles Analyzed</div>
-          <div class="stat-value" id="article-count">--</div>
-          <div class="stat-subtext">in timeline</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-label">Status</div>
-          <div class="stat-value" id="status-emoji">📊</div>
-          <div class="stat-subtext" id="status-text">Loading analysis...</div>
-        </div>
-      </div>
-
-      <!-- KEY FINDING -->
-      <div class="key-finding">
-        <h3>What Changed?</h3>
-        <p id="key-finding-text">Analyzing messaging patterns...</p>
-      </div>
-
-      <!-- CLAIM COMPARISON -->
-      <div class="claims-section">
-        <h3>Oldest vs Most Recent Claims</h3>
-        <div class="claims-container">
-          <div class="claim-box old">
-            <div class="claim-date" id="old-date">Loading...</div>
-            <div class="claim-quote" id="old-quote">Fetching oldest statement...</div>
-            <div class="claim-buttons">
-              <button class="claim-button" onclick="openArticle('old')">View Article</button>
-            </div>
-          </div>
-
-          <div class="vs-divider">VS</div>
-
-          <div class="claim-box new">
-            <div class="claim-date" id="new-date">Loading...</div>
-            <div class="claim-quote" id="new-quote">Fetching newest statement...</div>
-            <div class="claim-buttons">
-              <button class="claim-button" onclick="openArticle('new')">View Article</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- BASELINE -->
-      <div class="baseline">
-        <strong>Baseline:</strong> <em id="baseline">Loading baseline...</em>
-      </div>
-
-      <!-- LEGEND -->
-      <div class="legend">
-        <p style="font-weight: bold; margin-bottom: 10px;">How to Read This Chart:</p>
-        <div class="legend-item">
-          <div class="legend-color" style="background: rgba(28,175,122,0.3);"></div>
-          <span><strong>Green band</strong> = normal range of drift scores</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #eb6834;"></div>
-          <span><strong>Orange dots</strong> = most recent 8 articles</span>
-        </div>
-        <div class="legend-item">
-          <span>&rarr; Orange dots <strong>inside</strong> green = latest sounds normal</span>
-        </div>
-        <div class="legend-item">
-          <span>&rarr; Orange dots <strong>above</strong> green = latest sounds different</span>
-        </div>
-        <div class="legend-item">
-          <span>Click any point on the chart to open the source article</span>
-        </div>
-      </div>
-
-      <!-- CHART -->
+    <div class="chart-block">
       <div class="chart-container">
         <canvas id="driftChart"></canvas>
       </div>
+      <p class="chart-footnote">
+        <span class="swatch" style="background:rgba(95,122,82,0.5);"></span>normal range &nbsp;
+        <span class="swatch" style="background:#a34a3a;"></span>most recent 8 entries &nbsp;
+        — red above the moss band means recent coverage reads differently than usual — click a point to open its source
+      </p>
     </div>
+
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    const API_BASE = 'http://localhost:8000';
+    // Chart.js comes from a CDN. If that CDN is blocked/offline, `Chart` is
+    // undefined - and this used to be the FIRST statement in the script, so
+    // the whole file threw here and not a single line of dashboard logic ever
+    // ran. The page just sat on "loading..." forever. Guard it: no chart is
+    // survivable, a dead page is not.
+    const CHART_AVAILABLE = typeof Chart !== 'undefined';
+    if (CHART_AVAILABLE) {
+      Chart.defaults.color = '#a3b59e';
+      Chart.defaults.font.family = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    }
+
+    // Served by uvicorn (or deployed), the page and the API share an origin,
+    // so relative paths just work. Opened straight off disk as file://, they
+    // do NOT - fetch('/entities') would resolve to file:///entities. Fall back
+    // to the local dev server so double-clicking dashboard.html still works.
+    const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+
+    // Every network call gets a hard deadline. Without this a hung backend
+    // (DB pool waiting on an unreachable Supabase host, model still loading)
+    // leaves fetch() pending forever and the page sits on "loading..." with
+    // no error anywhere - the "frontend doesn't respond" symptom.
+    const FETCH_TIMEOUT_MS = 20000;
+    const INGEST_TIMEOUT_MS = 240000;
 
     let timelineData = [];
     let oldestArticle = null;
@@ -447,6 +447,70 @@
     let chartInstance = null;
     let currentEntityName = '';
     let activeEntityId = null;
+
+    class ApiError extends Error {
+      constructor(message, status) { super(message); this.status = status; }
+    }
+
+    function setBanner(msg, kind = 'error') {
+      const el = document.getElementById('banner');
+      if (!msg) { el.hidden = true; el.textContent = ''; return; }
+      el.hidden = false;
+      el.className = kind;
+      el.textContent = msg;
+    }
+
+    /**
+     * Single choke point for backend calls. Enforces: a timeout, an HTTP
+     * status check, and a JSON parse guard. Previously every call did a bare
+     * `await fetch(...)` then `.json()`, so a 500 (HTML body) or a dead
+     * server threw inside an unawaited async function and died silently.
+     */
+    async function api(path, opts = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      let res;
+      try {
+        res = await fetch(`${API_BASE}${path}`, { ...opts, signal: ctrl.signal });
+      } catch (e) {
+        throw new ApiError(
+          e.name === 'AbortError'
+            ? `${path} did not answer within ${Math.round(timeoutMs / 1000)}s`
+            : `cannot reach the API at ${path || '/'} - is uvicorn running on this origin?`,
+          0
+        );
+      } finally {
+        clearTimeout(timer);
+      }
+
+      const body = await res.text();
+      let json = null;
+      try { json = body ? JSON.parse(body) : null; } catch (_) { /* non-JSON body */ }
+
+      if (!res.ok) {
+        const detail = (json && (json.detail || json.error)) || body.slice(0, 200) || res.statusText;
+        throw new ApiError(`${path} -> ${res.status} ${detail}`, res.status);
+      }
+      if (json === null) {
+        throw new ApiError(`${path} returned a non-JSON body`, res.status);
+      }
+      return json;
+    }
+
+    /** Ask /health so the banner can name which dependency is actually down. */
+    async function diagnose() {
+      try {
+        const h = await api('/health', {}, 8000);
+        return ` (db: ${h.database}, redis: ${h.redis})`;
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function toggleAddPanel() {
+      const panel = document.getElementById('addEntityPanel');
+      panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+    }
 
     function movingAverage(data, windowSize) {
       return data.map((_, i) => {
@@ -457,66 +521,96 @@
     }
 
     function mean(arr) {
+      if (!arr.length) return 0;
       return arr.reduce((a, b) => a + b, 0) / arr.length;
     }
 
     function stdDev(arr, avg) {
+      if (!arr.length) return 0;
       const variance = arr.reduce((sum, x) => sum + (x - avg) ** 2, 0) / arr.length;
       return Math.sqrt(variance);
     }
 
+    /** A row's best-available timestamp. published_at is frequently NULL
+     *  (SerpApi hands back relative dates the worker can't parse), so fall
+     *  back to ingested_at instead of dropping the row on the floor. */
+    function rowTime(r) {
+      return r.published_at || r.ingested_at || null;
+    }
+
     function formatDate(dateStr) {
+      if (!dateStr) return 'undated';
       const d = new Date(dateStr);
+      if (isNaN(d)) return 'undated';
       return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function updateLogMeta() {
+      const now = new Date();
+      document.getElementById('logMeta').textContent = `entry - ${now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}`;
+    }
+
+    /** Renders a real, finished empty state. The old code left every field
+     *  reading "loading..." forever whenever there was nothing to show. */
+    function renderEmpty(message) {
+      timelineData = [];
+      oldestArticle = null;
+      newestArticle = null;
+      document.getElementById('drift-card').innerHTML =
+        '<span class="k">current reading</span><span class="leader"></span><span class="v">--</span><span class="sub">no data</span>';
+      document.getElementById('article-count').textContent = '0';
+      document.getElementById('status-text').textContent = '--';
+      document.getElementById('status-emoji').textContent = '';
+      document.getElementById('key-finding-text').textContent = message;
+      document.getElementById('old-date').textContent = '--';
+      document.getElementById('old-quote').textContent = 'nothing logged yet';
+      document.getElementById('new-date').textContent = '--';
+      document.getElementById('new-quote').textContent = 'nothing logged yet';
+      document.getElementById('baseline').textContent = 'no baseline yet';
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
     }
 
     function generateKeyFinding() {
       if (!oldestArticle || !newestArticle) return;
-      const oldDate = formatDate(oldestArticle.published_at);
-      const newDate = formatDate(newestArticle.published_at);
-      const findingText = `
-        ${currentEntityName}'s messaging shifted between ${oldDate} and ${newDate}.
-        Compare the oldest and newest statements below to see how the framing changed.
-      `;
-      document.getElementById('key-finding-text').textContent = findingText.trim();
+      const oldDate = formatDate(rowTime(oldestArticle));
+      const newDate = formatDate(rowTime(newestArticle));
+      const findingText = `${currentEntityName}'s messaging shifted between ${oldDate} and ${newDate}. Compare the oldest and newest statements below to see how the framing changed.`;
+      document.getElementById('key-finding-text').textContent = findingText;
     }
 
     function updateStatCards() {
       const scores = timelineData.map(r => r.drift_score);
       const currentScore = scores[scores.length - 1] || 0;
 
-      let statusEmoji = '🟢';
-      let statusText = 'Stable';
-
+      let statusText = 'stable';
       if (currentScore > 0.6) {
-        statusEmoji = '🔴';
-        statusText = 'High Drift';
+        statusText = 'high drift';
       } else if (currentScore > 0.35) {
-        statusEmoji = '🟡';
-        statusText = 'Moderate Drift';
+        statusText = 'moderate drift';
       }
 
       const avg = mean(scores);
-      const driftColor = currentScore > avg ? 'high-drift' : '';
+      const isAbove = currentScore > avg;
 
-      document.getElementById('drift-card').className = `stat-card ${driftColor}`;
       document.getElementById('drift-card').innerHTML = `
-        <div class="stat-label">Current Drift Score</div>
-        <div class="stat-value">${currentScore.toFixed(2)}</div>
-        <div class="stat-subtext" id="drift-status">${currentScore > avg ? 'Above normal' : 'Within normal'}</div>
+        <span class="k">current reading</span>
+        <span class="leader"></span>
+        <span class="v ${isAbove ? 'attention' : ''}">${currentScore.toFixed(2)}</span>
+        <span class="sub" id="drift-status">${isAbove ? 'above normal' : 'within normal'}</span>
       `;
 
       document.getElementById('article-count').textContent = timelineData.length;
-      document.getElementById('status-emoji').textContent = statusEmoji;
       document.getElementById('status-text').textContent = statusText;
+      document.getElementById('status-emoji').textContent = '';
     }
 
     function updateClaimComparison() {
       if (!oldestArticle || !newestArticle) return;
-      document.getElementById('old-date').textContent = formatDate(oldestArticle.published_at);
-      document.getElementById('old-quote').textContent = oldestArticle.text.slice(0, 150) + '...';
-      document.getElementById('new-date').textContent = formatDate(newestArticle.published_at);
-      document.getElementById('new-quote').textContent = newestArticle.text.slice(0, 150) + '...';
+      const clip = t => (t || '').slice(0, 150) + ((t || '').length > 150 ? '...' : '');
+      document.getElementById('old-date').textContent = formatDate(rowTime(oldestArticle));
+      document.getElementById('old-quote').textContent = clip(oldestArticle.text) || '(no text)';
+      document.getElementById('new-date').textContent = formatDate(rowTime(newestArticle));
+      document.getElementById('new-quote').textContent = clip(newestArticle.text) || '(no text)';
     }
 
     function openArticle(which) {
@@ -524,16 +618,16 @@
       if (article && article.url) {
         window.open(article.url, '_blank');
       } else {
-        alert('Source URL not available');
+        setBanner('No source URL stored for that entry.', 'warn');
       }
     }
 
     async function loadEntities() {
-      const res = await fetch(`${API_BASE}/entities`);
-      const json = await res.json();
+      const json = await api('/entities');
+      const entities = Array.isArray(json.entities) ? json.entities : [];
       const select = document.getElementById('entitySelect');
       select.innerHTML = '';
-      json.entities.forEach(e => {
+      entities.forEach(e => {
         const opt = document.createElement('option');
         opt.value = e.id;
         opt.textContent = e.name;
@@ -542,39 +636,48 @@
 
       select.onchange = () => loadDashboard(select.value); // onchange REPLACES, never stacks duplicate handlers
 
-      if (json.entities.length > 0) {
-        loadDashboard(select.value);
+      if (entities.length > 0) {
+        await loadDashboard(select.value);
+      } else {
+        document.getElementById('subtitle').textContent = 'tracking semantic drift over time';
+        renderEmpty('No subject logged yet. Use "log a new subject" above to fetch articles.');
       }
+      return entities;
     }
 
     async function loadBaseline(entityId) {
       try {
-        const res = await fetch(`${API_BASE}/baseline/${entityId}`);
-        const json = await res.json();
-        if (String(entityId) !== activeEntityId) return; // a newer selection already took over, discard this stale response
+        const json = await api(`/baseline/${entityId}`);
+        if (String(entityId) !== activeEntityId) return; // a newer selection took over, discard this stale response
         document.getElementById('baseline').textContent = json.baseline_text || 'No baseline computed yet.';
       } catch (e) {
         if (String(entityId) === activeEntityId) {
-          document.getElementById('baseline').textContent = 'Could not load baseline.';
+          document.getElementById('baseline').textContent = `Could not load baseline - ${e.message}`;
         }
       }
     }
 
     async function loadChart(entityId) {
       try {
-        const res = await fetch(`${API_BASE}/drift/${entityId}`);
-        const json = await res.json();
+        const json = await api(`/drift/${entityId}`);
 
-        if (String(entityId) !== activeEntityId) return; // a newer selection already took over, discard this stale response
+        if (String(entityId) !== activeEntityId) return; // a newer selection took over, discard this stale response
 
-        timelineData = json.timeline
-          .filter(r => r.published_at)
-          .sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
+        const rows = (json.timeline || []).map(r => ({ ...r, _t: rowTime(r) }));
+        const dated = rows.filter(r => r._t);
+        // Keep undated rows rather than filtering them out - the backend
+        // having data while the chart says "no data" was the core bug.
+        timelineData = dated.length
+          ? dated.slice().sort((a, b) => new Date(a._t) - new Date(b._t))
+          : rows;
 
         if (timelineData.length === 0) {
-          document.getElementById('key-finding-text').textContent = 'No data yet for this entity. Click "Add & fetch articles" or run ingestion first.';
-          if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+          renderEmpty('No data yet for this subject.');
           return;
+        }
+
+        if (dated.length && dated.length < rows.length) {
+          setBanner(`${rows.length - dated.length} of ${rows.length} entries had no usable date and are not plotted.`, 'warn');
         }
 
         oldestArticle = timelineData[0];
@@ -584,7 +687,7 @@
         updateClaimComparison();
         generateKeyFinding();
 
-        const labels = timelineData.map(r => r.published_at.slice(0, 10));
+        const labels = timelineData.map((r, i) => (r._t ? String(r._t).slice(0, 10) : `#${i + 1}`));
         const scores = timelineData.map(r => r.drift_score);
         const smoothed = movingAverage(scores, 7);
         const texts = timelineData.map(r => r.text);
@@ -593,8 +696,13 @@
         const avg = mean(scores);
         const sd = stdDev(scores, avg);
         const RECENT = 8;
-        const pointColors = scores.map((_, i) => i >= scores.length - RECENT ? '#eb6834' : 'rgba(42,120,214,0.25)');
+        const pointColors = scores.map((_, i) => i >= scores.length - RECENT ? '#e08468' : 'rgba(163,181,158,0.35)');
         const pointRadii = scores.map((_, i) => i >= scores.length - RECENT ? 5 : 2);
+
+        if (!CHART_AVAILABLE) {
+          setBanner('Chart.js failed to load from the CDN - numbers and excerpts still work, the graph does not.', 'warn');
+          return;
+        }
 
         if (chartInstance) chartInstance.destroy();
 
@@ -603,11 +711,11 @@
           data: {
             labels: labels,
             datasets: [
-              { label: 'Normal range', data: scores.map(() => avg + sd), borderColor: 'transparent', backgroundColor: 'rgba(28,175,122,0.12)', pointRadius: 0, fill: '+1' },
+              { label: 'Normal range', data: scores.map(() => avg + sd), borderColor: 'transparent', backgroundColor: 'rgba(147,181,124,0.18)', pointRadius: 0, fill: '+1' },
               { label: '_lower', data: scores.map(() => avg - sd), borderColor: 'transparent', pointRadius: 0, fill: false },
-              { label: 'Typical level', data: scores.map(() => avg), borderColor: '#1baf7a', borderDash: [6, 6], pointRadius: 0, borderWidth: 2 },
-              { label: 'Raw drift score', data: scores, borderColor: 'rgba(42,120,214,0.25)', pointBackgroundColor: pointColors, pointRadius: pointRadii, tension: 0.1 },
-              { label: 'Moving average', data: smoothed, borderColor: '#2a78d6', borderWidth: 3, pointRadius: 0, tension: 0.3 }
+              { label: 'Typical level', data: scores.map(() => avg), borderColor: '#93b57c', borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5 },
+              { label: 'Raw drift score', data: scores, borderColor: 'rgba(163,181,158,0.35)', pointBackgroundColor: pointColors, pointRadius: pointRadii, tension: 0.1 },
+              { label: 'Moving average', data: smoothed, borderColor: '#8b9bdb', borderWidth: 2.5, pointRadius: 0, tension: 0.3 }
             ]
           },
           options: {
@@ -623,43 +731,67 @@
               }
             },
             plugins: {
-              legend: { labels: { filter: item => item.text !== '_lower', padding: 15, usePointStyle: true } },
-              tooltip: { callbacks: { label: ctx => texts[ctx.dataIndex] ? texts[ctx.dataIndex].slice(0, 80) + '...' : `Drift: ${ctx.formattedValue}` } }
+              legend: { labels: { filter: item => item.text !== '_lower', padding: 14, usePointStyle: true, font: { family: "ui-monospace, monospace", size: 11 } } },
+              tooltip: {
+                backgroundColor: '#1f251f',
+                borderColor: '#4a5a4a',
+                borderWidth: 1,
+                titleColor: '#e7ece3',
+                bodyColor: '#a3b59e',
+                titleFont: { family: "-apple-system, sans-serif" },
+                bodyFont: { family: "-apple-system, sans-serif" },
+                callbacks: { label: ctx => texts[ctx.dataIndex] ? texts[ctx.dataIndex].slice(0, 80) + '...' : `Drift: ${ctx.formattedValue}` }
+              }
             },
             scales: {
-              y: { beginAtZero: true, max: 1, title: { display: true, text: 'Drift Score' } },
-              x: { ticks: { maxTicksLimit: 15 } }
+              y: {
+                beginAtZero: true, max: 1,
+                title: { display: true, text: 'drift score', color: '#798c76', font: { size: 11 } },
+                grid: { color: 'rgba(231,236,227,0.07)' },
+                ticks: { color: '#798c76', font: { size: 10.5 } }
+              },
+              x: {
+                ticks: { maxTicksLimit: 15, color: '#798c76', font: { size: 10.5 } },
+                grid: { color: 'rgba(231,236,227,0.05)' }
+              }
             }
           }
         });
       } catch (e) {
         console.error('Failed to load drift data:', e);
-        document.getElementById('key-finding-text').textContent = 'Error loading data. Make sure the API is running!';
+        if (String(entityId) !== activeEntityId) return;
+        renderEmpty(`Could not load drift data - ${e.message}${await diagnose()}`);
+        setBanner(e.message, 'error');
       }
     }
 
-    function loadDashboard(entityId) {
+    async function loadDashboard(entityId) {
       const select = document.getElementById('entitySelect');
       currentEntityName = select.options[select.selectedIndex]?.textContent || '';
       activeEntityId = String(entityId); // this is the only entity allowed to render from now on
 
       // reset immediately so stale content from the previous entity never lingers on screen mid-fetch
-      document.getElementById('subtitle').textContent = `Track semantic drift in ${currentEntityName}'s messaging`;
+      document.getElementById('subtitle').textContent = `tracking semantic drift in ${currentEntityName}'s messaging`;
       document.getElementById('baseline').textContent = 'Loading baseline...';
       document.getElementById('key-finding-text').textContent = 'Loading...';
+      setBanner(null);
 
-      loadBaseline(entityId);
-      loadChart(entityId);
+      await Promise.allSettled([loadBaseline(entityId), loadChart(entityId)]);
     }
 
     let isAdding = false;
 
+    /** Polls until the worker has stored something. Tolerates transient
+     *  failures instead of aborting the whole add flow on the first blip. */
     async function waitForData(entityId, maxAttempts = 15, intervalMs = 2000) {
+      let consecutiveErrors = 0;
       for (let i = 0; i < maxAttempts; i++) {
-        const res = await fetch(`${API_BASE}/drift/${entityId}`);
-        const json = await res.json();
-        if (json.timeline && json.timeline.length > 0) {
-          return true;
+        try {
+          const json = await api(`/drift/${entityId}`, {}, 10000);
+          consecutiveErrors = 0;
+          if (json.timeline && json.timeline.length > 0) return true;
+        } catch (e) {
+          if (++consecutiveErrors >= 3) throw e;
         }
         await new Promise(r => setTimeout(r, intervalMs));
       }
@@ -672,7 +804,7 @@
       const name = document.getElementById('newEntityName').value.trim();
       const termsRaw = document.getElementById('newEntityTerms').value.trim();
       if (!name || !termsRaw) {
-        alert('Enter both a name and at least one search term');
+        setBanner('Enter both a name and at least one search term.', 'warn');
         return;
       }
       const search_terms = termsRaw.split(',').map(t => t.trim()).filter(Boolean);
@@ -681,45 +813,74 @@
 
       isAdding = true;
       btn.disabled = true;
-      btn.textContent = 'Working...';
+      btn.textContent = 'working...';
+      setBanner(null);
 
       try {
-        status.textContent = 'Adding entity...';
-        const createRes = await fetch(`${API_BASE}/entities`, {
+        status.textContent = 'setting up...';
+        const created = await api('/entities', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, search_terms })
         });
-        const created = await createRes.json();
 
-        status.textContent = `Fetching articles for "${name}"... this calls SerpApi, please wait.`;
-        await fetch(`${API_BASE}/trigger-ingest/${created.id}`, { method: 'POST' });
+        status.textContent = `searching for "${name}"...`;
+        const ingest = await api(`/trigger-ingest/${created.id}`, { method: 'POST' }, INGEST_TIMEOUT_MS);
 
-        status.textContent = 'Articles queued — waiting for the worker to store them, this can take 10-30 seconds...';
+        const queued = (ingest.results || []).filter(r => r.queued).length;
+        if (queued === 0) {
+          status.textContent = 'no articles found for those terms - try different ones.';
+          await loadEntities();
+          return;
+        }
+
+        status.textContent = 'analyzing articles...';
         const gotData = await waitForData(created.id);
 
+        if (!gotData) console.warn('no rows yet - is the worker running? (python3 -m app.worker)');
         status.textContent = gotData
-          ? 'Done! Showing results below.'
-          : 'Still processing — check your worker terminal is running, then re-select this entity in the dropdown.';
+          ? 'done.'
+          : 'still working on it - give it a moment, then re-select the subject.';
 
         await loadEntities();
         const select = document.getElementById('entitySelect');
         select.value = created.id;
-        loadDashboard(created.id);
+        await loadDashboard(created.id);
+      } catch (e) {
+        console.error(e);
+        const hint = e.status === 429 ? '' : await diagnose();
+        status.textContent = `failed: ${e.message}${hint}`;
+        setBanner(`${e.message}${hint}`, 'error');
       } finally {
         isAdding = false;
         btn.disabled = false;
-        btn.textContent = 'Add & fetch articles';
+        btn.textContent = 'add & fetch';
       }
     }
 
     async function resetAndLoad() {
       // Wipe everything on every page load/refresh, so data only ever
-      // exists for whatever was most recently searched.
-      await fetch(`${API_BASE}/reset`, { method: 'POST' });
-      await loadEntities();
+      // exists for whatever was most recently searched. A failure here
+      // must NOT prevent loadEntities() from running - that's what used to
+      // leave the whole page frozen on "loading..." with nothing in console.
+      try {
+        await api('/reset', { method: 'POST' });
+      } catch (e) {
+        console.warn('reset failed:', e);
+        setBanner(`Could not reset the database - ${e.message}`, 'warn');
+      }
+
+      try {
+        await loadEntities();
+      } catch (e) {
+        console.error('entities failed:', e);
+        renderEmpty(`Backend not responding - ${e.message}${await diagnose()}`);
+        setBanner(`${e.message}`, 'error');
+        console.error('start the API with: uvicorn app.main:app --reload');
+      }
     }
 
+    updateLogMeta();
     resetAndLoad();
   </script>
 </body>

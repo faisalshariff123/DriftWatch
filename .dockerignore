@@ -1,0 +1,10 @@
+.git
+.env
+.venv
+venv
+__pycache__
+*.pyc
+.DS_Store
+migrations
+requeue.py
+README.md

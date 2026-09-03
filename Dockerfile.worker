@@ -1,0 +1,4 @@
+# Deprecated - the API and the worker now share ONE image (see Dockerfile).
+# deploy.sh deploys the same image twice and overrides the entrypoint for the
+# worker with `--command python --args -m,app.worker`, which halves build time
+# and guarantees both services run identical code. Safe to delete this file.
